@@ -1,29 +1,29 @@
 # CheckoutService
 
-Checkout Service implemented as a lightweight transactional orchestrator using ASP.NET Core Minimal APIs.
+Checkout Service implementado como um orquestrador transacional leve usando ASP.NET Core Minimal APIs.
 
-## Responsibilities
+## Responsabilidades
 
-- Create checkout sessions from a cart.
-- Validate buyer, seller, items, and shipping address inputs.
-- Call the Shipping Promise Service for delivery promise and shipping cost.
-- Persist checkout state with EF Core/PostgreSQL.
-- Enforce idempotency for checkout creation and confirmation.
-- Persist integration events through an outbox table.
-- Expose checkout status and health checks.
+- Criar sessões de checkout a partir de um carrinho.
+- Validar comprador, vendedor, itens e endereço de entrega.
+- Chamar o Shipping Promise Service para obter promessa de entrega e custo de frete.
+- Persistir o estado do checkout com EF Core/PostgreSQL.
+- Garantir idempotência na criação e na confirmação do checkout.
+- Persistir eventos de integração em uma tabela de outbox.
+- Expor status do checkout e health checks.
 
-## Out of scope
+## Fora do escopo
 
-This service does not calculate routes, freight, SLA, tracking, shipment creation, carrier integrations, labels, or real stock deduction.
+Este serviço não calcula rotas, frete, SLA, tracking, criação de shipment, integrações diretas com transportadoras, emissão de etiquetas ou baixa real de estoque.
 
 ## Endpoints
 
-- `POST /checkouts` — creates a checkout session. Requires `Idempotency-Key` header.
-- `GET /checkouts/{checkoutId}` — returns checkout status and totals.
-- `POST /checkouts/{checkoutId}/confirm` — confirms a checkout. Requires `Idempotency-Key` header.
-- `GET /health` — exposes health checks.
+- `POST /checkouts` — cria uma sessão de checkout. Requer o header `Idempotency-Key`.
+- `GET /checkouts/{checkoutId}` — retorna status, totais e promessa de entrega do checkout.
+- `POST /checkouts/{checkoutId}/confirm` — confirma um checkout. Requer o header `Idempotency-Key`.
+- `GET /health` — expõe verificações de integridade.
 
-## Configuration
+## Configuração
 
 ```json
 {
@@ -36,6 +36,6 @@ This service does not calculate routes, freight, SLA, tracking, shipment creatio
 }
 ```
 
-## Event publication
+## Publicação de eventos
 
-The checkout flow writes `CheckoutCreated` and `CheckoutConfirmed` messages to `outbox_messages` in the same EF Core unit of work as checkout persistence. A separate worker should publish pending outbox records to Kafka or another broker and then mark them as processed.
+O fluxo de checkout grava mensagens `CheckoutCreated` e `CheckoutConfirmed` em `outbox_messages` na mesma unidade de trabalho do EF Core usada para persistir o checkout. Um worker separado deve publicar registros pendentes da outbox no Kafka, ou em outro broker, e depois marcá-los como processados.
