@@ -2,33 +2,48 @@ using CheckoutService.Api;
 using CheckoutService.Application;
 using CheckoutService.Infrastructure;
 using CheckoutService.Infrastructure.Repositories;
+using CheckoutService.Infrastructure.Mocks;
 using Microsoft.EntityFrameworkCore;
 
 var builder = WebApplication.CreateBuilder(args);
 
-builder.Services.AddDbContext<CheckoutDbContext>(options =>
-{
-    var connectionString = builder.Configuration.GetConnectionString("CheckoutDb")
-        ?? throw new InvalidOperationException("CheckoutDb connection string not configured");
-
-    options.UseNpgsql(connectionString);
-});
+var useMockData = builder.Configuration.GetValue("MockData:Enabled", false)
+    || string.IsNullOrWhiteSpace(builder.Configuration.GetConnectionString("CheckoutDb"));
 
 builder.Services.AddScoped<CheckoutApplicationService>();
-builder.Services.AddScoped<ICheckoutRepository, CheckoutRepository>();
-builder.Services.AddScoped<IEventPublisher, OutboxEventPublisher>();
 
-builder.Services.AddHttpClient<IShippingPromiseClient, ShippingPromiseClient>(client =>
+var healthChecks = builder.Services.AddHealthChecks();
+
+if (useMockData)
 {
-    client.BaseAddress = new Uri(
-        builder.Configuration["Services:ShippingPromise"]
-        ?? throw new InvalidOperationException("ShippingPromise URL not configured"));
+    builder.Services.AddSingleton<ICheckoutRepository, MockCheckoutRepository>();
+    builder.Services.AddSingleton<IEventPublisher, MockEventPublisher>();
+    builder.Services.AddSingleton<IShippingPromiseClient, MockShippingPromiseClient>();
+}
+else
+{
+    builder.Services.AddDbContext<CheckoutDbContext>(options =>
+    {
+        var connectionString = builder.Configuration.GetConnectionString("CheckoutDb")
+            ?? throw new InvalidOperationException("CheckoutDb connection string not configured");
 
-    client.Timeout = TimeSpan.FromMilliseconds(800);
-});
+        options.UseNpgsql(connectionString);
+    });
 
-builder.Services.AddHealthChecks()
-    .AddDbContextCheck<CheckoutDbContext>();
+    builder.Services.AddScoped<ICheckoutRepository, CheckoutRepository>();
+    builder.Services.AddScoped<IEventPublisher, OutboxEventPublisher>();
+
+    builder.Services.AddHttpClient<IShippingPromiseClient, ShippingPromiseClient>(client =>
+    {
+        client.BaseAddress = new Uri(
+            builder.Configuration["Services:ShippingPromise"]
+            ?? throw new InvalidOperationException("ShippingPromise URL not configured"));
+
+        client.Timeout = TimeSpan.FromMilliseconds(800);
+    });
+
+    healthChecks.AddDbContextCheck<CheckoutDbContext>();
+}
 
 builder.Services.AddProblemDetails();
 builder.Services.AddEndpointsApiExplorer();
