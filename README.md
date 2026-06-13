@@ -663,6 +663,17 @@ Comportamento:
 - Se a resposta vier vazia ou inválida, o serviço lança erro de resposta inválida.
 - Se `available` for `false`, a criação do checkout é interrompida com o motivo informado em `unavailableReason`.
 
+
+## Execução com dados mockados
+
+Enquanto o banco de dados e o Shipping Promise Service não estiverem configurados, o projeto pode rodar com mocks ativados. Em `appsettings.Development.json`, `MockData:Enabled` já está como `true`, então o profile de desenvolvimento usa:
+
+- `MockCheckoutRepository`: mantém checkouts criados em memória durante a execução da aplicação.
+- `MockShippingPromiseClient`: gera uma promessa de entrega disponível, com frete grátis para carrinhos a partir de R$ 200,00 e frete padrão de R$ 19,90 para valores menores.
+- `MockEventPublisher`: registra os eventos de outbox no log, sem gravar no banco.
+
+Para voltar a usar PostgreSQL e o serviço real de promessa de entrega, configure `MockData:Enabled` como `false` e mantenha `ConnectionStrings:CheckoutDb` e `Services:ShippingPromise` configurados.
+
 ## Configuração
 
 ### appsettings.json
