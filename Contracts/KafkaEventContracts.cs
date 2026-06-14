@@ -15,13 +15,23 @@ public sealed record ShippingQuoteRequestedPayload(
     [property: JsonPropertyName("checkoutId")] Guid CheckoutId,
     [property: JsonPropertyName("buyerId")] Guid BuyerId,
     [property: JsonPropertyName("sellerId")] Guid SellerId,
-    [property: JsonPropertyName("destination")] object Destination,
-    [property: JsonPropertyName("items")] object Items);
+    [property: JsonPropertyName("destination")] AddressDto Destination,
+    [property: JsonPropertyName("items")] IReadOnlyList<ShippingQuoteRequestedItemPayload> Items);
+
+public sealed record ShippingQuoteRequestedItemPayload(
+    [property: JsonPropertyName("skuId")] Guid SkuId,
+    [property: JsonPropertyName("sellerId")] Guid SellerId,
+    [property: JsonPropertyName("quantity")] int Quantity,
+    [property: JsonPropertyName("unitPrice")] decimal UnitPrice);
 
 public sealed record ShippingPromiseCalculatedPayload(
     [property: JsonPropertyName("checkoutId")] Guid CheckoutId,
+    [property: JsonPropertyName("buyerId")] Guid BuyerId,
+    [property: JsonPropertyName("sellerId")] Guid SellerId,
     [property: JsonPropertyName("promiseId")] string PromiseId,
     [property: JsonPropertyName("mode")] string Mode,
     [property: JsonPropertyName("carrier")] string Carrier,
     [property: JsonPropertyName("estimatedDeliveryDate")] DateOnly EstimatedDeliveryDate,
-    [property: JsonPropertyName("cost")] decimal Cost);
+    [property: JsonPropertyName("cost")] decimal Cost,
+    [property: JsonPropertyName("currency")] string Currency,
+    [property: JsonPropertyName("source")] string Source);

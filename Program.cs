@@ -11,8 +11,11 @@ var builder = WebApplication.CreateBuilder(args);
 
 var useMockData = builder.Configuration.GetValue("MockData:Enabled", false)
     || string.IsNullOrWhiteSpace(builder.Configuration.GetConnectionString("CheckoutDb"));
+var kafkaSection = builder.Configuration.GetSection(KafkaOptions.SectionName);
+var kafkaConfigured = kafkaSection.Exists()
+    && !string.IsNullOrWhiteSpace(kafkaSection.GetValue<string>(nameof(KafkaOptions.BootstrapServers)));
 
-builder.Services.Configure<KafkaOptions>(builder.Configuration.GetSection(KafkaOptions.SectionName));
+builder.Services.Configure<KafkaOptions>(kafkaSection);
 builder.Services.AddScoped<CheckoutApplicationService>();
 
 var healthChecks = builder.Services.AddHealthChecks();
@@ -20,10 +23,12 @@ var healthChecks = builder.Services.AddHealthChecks();
 if (useMockData)
 {
     builder.Services.AddSingleton<ICheckoutRepository, MockCheckoutRepository>();
-    if (builder.Configuration.GetSection(KafkaOptions.SectionName).Exists())
+    builder.Services.AddSingleton<IShippingPromiseProjectionRepository, InMemoryShippingPromiseProjectionRepository>();
+    if (kafkaConfigured)
     {
         builder.Services.AddSingleton<IKafkaProducer, KafkaProducer>();
         builder.Services.AddSingleton<IEventPublisher, KafkaEventPublisher>();
+        builder.Services.AddHostedService<ShippingPromiseCalculatedConsumer>();
     }
     else
     {
@@ -43,9 +48,12 @@ else
     builder.Services.AddScoped<ICheckoutRepository, CheckoutRepository>();
     builder.Services.AddScoped<IEventPublisher, OutboxEventPublisher>();
     builder.Services.AddScoped<IShippingPromiseProjectionRepository, ShippingPromiseProjectionRepository>();
-    builder.Services.AddSingleton<IKafkaProducer, KafkaProducer>();
-    builder.Services.AddHostedService<OutboxKafkaDispatcher>();
-    builder.Services.AddHostedService<ShippingPromiseCalculatedConsumer>();
+    if (kafkaConfigured)
+    {
+        builder.Services.AddSingleton<IKafkaProducer, KafkaProducer>();
+        builder.Services.AddHostedService<OutboxKafkaDispatcher>();
+        builder.Services.AddHostedService<ShippingPromiseCalculatedConsumer>();
+    }
 
     healthChecks.AddDbContextCheck<CheckoutDbContext>();
 }

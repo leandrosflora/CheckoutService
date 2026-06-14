@@ -82,7 +82,11 @@ public sealed class CheckoutApplicationService
                 checkout.BuyerId,
                 checkout.SellerId,
                 request.ShippingAddress,
-                request.Items));
+                request.Items.Select(x => new ShippingQuoteRequestedItemPayload(
+                    x.SkuId,
+                    checkout.SellerId,
+                    x.Quantity,
+                    x.UnitPrice)).ToList()));
 
         await _eventPublisher.AddToOutboxAsync(
             "checkout.shipping.quote.requested",
