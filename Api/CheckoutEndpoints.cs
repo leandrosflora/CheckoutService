@@ -26,9 +26,16 @@ public static class CheckoutEndpoints
                 });
             }
 
+            var correlationId = httpContext.Request.Headers["X-Correlation-Id"].ToString();
+            if (string.IsNullOrWhiteSpace(correlationId))
+            {
+                correlationId = httpContext.TraceIdentifier;
+            }
+
             var response = await service.CreateCheckoutAsync(
                 request,
                 idempotencyKey,
+                correlationId,
                 cancellationToken);
 
             return Results.Created($"/checkouts/{response.CheckoutId}", response);

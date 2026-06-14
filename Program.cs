@@ -3,13 +3,16 @@ using CheckoutService.Application;
 using CheckoutService.Infrastructure;
 using CheckoutService.Infrastructure.Repositories;
 using CheckoutService.Infrastructure.Mocks;
+using CheckoutService.Infrastructure.Messaging;
 using Microsoft.EntityFrameworkCore;
+using CheckoutService.Application.Ports;
 
 var builder = WebApplication.CreateBuilder(args);
 
 var useMockData = builder.Configuration.GetValue("MockData:Enabled", false)
     || string.IsNullOrWhiteSpace(builder.Configuration.GetConnectionString("CheckoutDb"));
 
+builder.Services.Configure<KafkaOptions>(builder.Configuration.GetSection(KafkaOptions.SectionName));
 builder.Services.AddScoped<CheckoutApplicationService>();
 
 var healthChecks = builder.Services.AddHealthChecks();
@@ -17,7 +20,15 @@ var healthChecks = builder.Services.AddHealthChecks();
 if (useMockData)
 {
     builder.Services.AddSingleton<ICheckoutRepository, MockCheckoutRepository>();
-    builder.Services.AddSingleton<IEventPublisher, MockEventPublisher>();
+    if (builder.Configuration.GetSection(KafkaOptions.SectionName).Exists())
+    {
+        builder.Services.AddSingleton<IKafkaProducer, KafkaProducer>();
+        builder.Services.AddSingleton<IEventPublisher, KafkaEventPublisher>();
+    }
+    else
+    {
+        builder.Services.AddSingleton<IEventPublisher, MockEventPublisher>();
+    }
 }
 else
 {
@@ -31,6 +42,10 @@ else
 
     builder.Services.AddScoped<ICheckoutRepository, CheckoutRepository>();
     builder.Services.AddScoped<IEventPublisher, OutboxEventPublisher>();
+    builder.Services.AddScoped<IShippingPromiseProjectionRepository, ShippingPromiseProjectionRepository>();
+    builder.Services.AddSingleton<IKafkaProducer, KafkaProducer>();
+    builder.Services.AddHostedService<OutboxKafkaDispatcher>();
+    builder.Services.AddHostedService<ShippingPromiseCalculatedConsumer>();
 
     healthChecks.AddDbContextCheck<CheckoutDbContext>();
 }

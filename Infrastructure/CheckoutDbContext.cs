@@ -12,6 +12,7 @@ public sealed class CheckoutDbContext : DbContext
 
     public DbSet<CheckoutSession> Checkouts => Set<CheckoutSession>();
     public DbSet<OutboxMessage> OutboxMessages => Set<OutboxMessage>();
+    public DbSet<ShippingPromiseProjection> ShippingPromiseProjections => Set<ShippingPromiseProjection>();
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
@@ -82,6 +83,19 @@ public sealed class CheckoutDbContext : DbContext
                 .IsRequired();
 
             entity.HasIndex(x => x.ProcessedAt);
+        });
+
+        modelBuilder.Entity<ShippingPromiseProjection>(entity =>
+        {
+            entity.ToTable("shipping_promise_projections");
+            entity.HasKey(x => x.Id);
+            entity.Property(x => x.CorrelationId).HasMaxLength(200).IsRequired();
+            entity.Property(x => x.PromiseId).HasMaxLength(200).IsRequired();
+            entity.Property(x => x.Mode).HasMaxLength(100).IsRequired();
+            entity.Property(x => x.Carrier).HasMaxLength(100).IsRequired();
+            entity.Property(x => x.Cost).HasPrecision(18, 2);
+            entity.HasIndex(x => x.EventId).IsUnique();
+            entity.HasIndex(x => new { x.CorrelationId, x.CheckoutId }).IsUnique();
         });
     }
 }
