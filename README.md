@@ -848,3 +848,61 @@ dotnet test
 - Adicionar política de retry/circuit breaker no cliente HTTP do Shipping Promise Service.
 - Adicionar documentação OpenAPI enriquecida com exemplos e códigos de erro.
 - Corrigir ou atualizar o arquivo `CheckoutService.http` para refletir os endpoints reais de checkout.
+
+## Kafka local para teste end-to-end
+
+O serviço usa Kafka real via `Confluent.Kafka` quando a seção `Kafka` está configurada. Para execução local fora do Docker, use o broker exposto pelo `docker-compose` do repositório de arquitetura em `localhost:9092`.
+
+```json
+{
+  "Kafka": {
+    "BootstrapServers": "localhost:9092",
+    "ConsumerGroupId": "checkout-service",
+    "Topics": {
+      "ShippingQuoteRequested": "checkout.shipping.quote.requested",
+      "ShippingPromiseCalculated": "shipping.promise.calculated"
+    }
+  }
+}
+```
+
+Tópicos usados por este serviço:
+
+- Producer: `checkout.shipping.quote.requested`
+- Consumer: `shipping.promise.calculated`
+
+A UI do Kafka fica em <http://localhost:8088>. Ela deve ser usada apenas para inspeção; o broker configurado nos serviços é `localhost:9092`.
+
+### Como executar localmente com Kafka
+
+1. Suba a infraestrutura local pelo repositório `meli-envios-architecture`.
+2. Confirme que o Kafka está exposto em `localhost:9092` e abra a UI em <http://localhost:8088>.
+3. Restaure, compile e teste o serviço:
+
+```bash
+dotnet restore
+dotnet build
+dotnet test
+```
+
+4. Execute o serviço:
+
+```bash
+dotnet run
+```
+
+5. Crie um checkout informando `Idempotency-Key` e, opcionalmente, `X-Correlation-Id`. O serviço propaga o correlation id no envelope Kafka padrão.
+
+### Como validar no Kafka UI
+
+1. Acesse <http://localhost:8088>.
+2. Abra o tópico `checkout.shipping.quote.requested`.
+3. Crie um checkout e verifique uma mensagem com envelope contendo `eventId`, `eventType`, `schemaVersion`, `occurredAt`, `correlationId`, `producer` e `payload`.
+4. Publique uma mensagem canônica em `shipping.promise.calculated` com key igual ao `checkoutId` para validar o consumer.
+5. Verifique nos logs do serviço as entradas com `topic`, `message key`, `eventType` e `correlationId`.
+
+### Limitações e próximos passos
+
+- O modo mock continua disponível para desenvolvimento, mas a presença da seção `Kafka` permite producer real no ambiente local.
+- Em modo com banco configurado, eventos de cotação são gravados no outbox e despachados em background para evitar derrubar indevidamente o request HTTP em falhas temporárias de Kafka.
+- O consumer de `shipping.promise.calculated` registra projeções idempotentes por `eventId` ou por `correlationId` + `checkoutId`.

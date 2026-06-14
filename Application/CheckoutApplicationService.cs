@@ -22,6 +22,7 @@ public sealed class CheckoutApplicationService
     public async Task<CheckoutResponse> CreateCheckoutAsync(
         CreateCheckoutRequest request,
         string idempotencyKey,
+        string correlationId,
         CancellationToken cancellationToken)
     {
         var existing = await _repository.FindByIdempotencyKeyAsync(
@@ -69,22 +70,23 @@ public sealed class CheckoutApplicationService
 
         await _repository.AddAsync(checkout, cancellationToken);
 
-        await _eventPublisher.AddToOutboxAsync(
-            "CheckoutCreated",
-            new
-            {
-                EventId = Guid.NewGuid(),
-                EventType = "CheckoutCreated",
-                OccurredAt = DateTimeOffset.UtcNow,
-                CheckoutId = checkout.Id,
+        var quoteRequested = new KafkaEventEnvelope<ShippingQuoteRequestedPayload>(
+            Guid.NewGuid(),
+            "checkout.shipping.quote.requested",
+            "1.0",
+            DateTimeOffset.UtcNow,
+            correlationId,
+            "checkout-service",
+            new ShippingQuoteRequestedPayload(
+                checkout.Id,
                 checkout.BuyerId,
                 checkout.SellerId,
-                checkout.ItemsTotal,
-                checkout.ShippingCost,
-                checkout.TotalAmount,
-                checkout.ShippingPromiseId,
-                checkout.EstimatedDeliveryDate
-            },
+                request.ShippingAddress,
+                request.Items));
+
+        await _eventPublisher.AddToOutboxAsync(
+            "checkout.shipping.quote.requested",
+            quoteRequested,
             cancellationToken);
 
         await _repository.SaveChangesAsync(cancellationToken);
