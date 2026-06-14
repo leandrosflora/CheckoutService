@@ -60,7 +60,6 @@ Este microserviço **não** é responsável por:
 - Emissão de etiquetas.
 - Reserva ou baixa real de estoque.
 - Processamento de pagamento.
-- Publicação direta dos eventos em Kafka, RabbitMQ ou outro broker.
 - Autenticação, autorização e validações antifraude.
 
 ## Arquitetura e organização do projeto
@@ -669,7 +668,9 @@ Comportamento:
 Enquanto o banco de dados não estiver configurado, o projeto pode rodar com persistência mockada. Em `appsettings.Development.json`, `MockData:Enabled` já está como `true`, então o profile de desenvolvimento usa:
 
 - `MockCheckoutRepository`: mantém checkouts criados em memória durante a execução da aplicação.
-- `MockEventPublisher`: registra os eventos de outbox no log, sem gravar no banco.
+- `MockEventPublisher`: registra os eventos de outbox no log, sem gravar no banco quando Kafka não está configurado.
+- `KafkaEventPublisher`: publica diretamente em `checkout.shipping.quote.requested` quando a seção `Kafka` está configurada.
+- `InMemoryShippingPromiseProjectionRepository`: armazena em memória a projeção consumida de `shipping.promise.calculated` durante o fluxo E2E local mockado.
 
 As chamadas HTTP para serviços externos não são mockadas nesse modo: o `ShippingPromiseClient` real permanece registrado para permitir testes de integração com o Shipping Promise Service. Configure `Services:ShippingPromise` para a URL real do serviço a ser testado.
 
@@ -868,8 +869,69 @@ O serviço usa Kafka real via `Confluent.Kafka` quando a seção `Kafka` está c
 
 Tópicos usados por este serviço:
 
-- Producer: `checkout.shipping.quote.requested`
-- Consumer: `shipping.promise.calculated`
+| Direção | Tópico | Evento | Observação |
+| --- | --- | --- | --- |
+| Producer | `checkout.shipping.quote.requested` | `checkout.shipping.quote.requested` | Publicado com envelope padrão e key igual ao `checkoutId` real da sessão criada. |
+| Consumer | `shipping.promise.calculated` | `shipping.promise.calculated` | Consumido de forma idempotente; `checkoutId` é obrigatório para gravar a projeção. |
+
+> Importante: mensagens de `shipping.promise.calculated` sem `checkoutId` válido são ignoradas e registradas como erro, pois o `checkoutId` é a chave de correlação obrigatória com a sessão de checkout.
+
+Envelope produzido em `checkout.shipping.quote.requested`:
+
+```json
+{
+  "eventId": "55555555-5555-5555-5555-555555555555",
+  "eventType": "checkout.shipping.quote.requested",
+  "schemaVersion": "1.0",
+  "occurredAt": "2026-06-14T12:00:00Z",
+  "correlationId": "66666666-6666-6666-6666-666666666666",
+  "producer": "checkout-service",
+  "payload": {
+    "checkoutId": "aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa",
+    "buyerId": "11111111-1111-1111-1111-111111111111",
+    "sellerId": "22222222-2222-2222-2222-222222222222",
+    "destination": {
+      "zipCode": "05700-000",
+      "city": "São Paulo",
+      "state": "SP",
+      "country": "BR"
+    },
+    "items": [
+      {
+        "skuId": "33333333-3333-3333-3333-333333333333",
+        "sellerId": "22222222-2222-2222-2222-222222222222",
+        "quantity": 1,
+        "unitPrice": 129.9
+      }
+    ]
+  }
+}
+```
+
+Envelope esperado em `shipping.promise.calculated`:
+
+```json
+{
+  "eventId": "77777777-7777-7777-7777-777777777777",
+  "eventType": "shipping.promise.calculated",
+  "schemaVersion": "1.0",
+  "occurredAt": "2026-06-14T12:00:05Z",
+  "correlationId": "66666666-6666-6666-6666-666666666666",
+  "producer": "shipping-promise-service",
+  "payload": {
+    "checkoutId": "aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa",
+    "buyerId": "11111111-1111-1111-1111-111111111111",
+    "sellerId": "22222222-2222-2222-2222-222222222222",
+    "promiseId": "promise_123",
+    "mode": "same_day",
+    "carrier": "carrier_1",
+    "estimatedDeliveryDate": "2026-06-15",
+    "cost": 14.9,
+    "currency": "BRL",
+    "source": "calculated"
+  }
+}
+```
 
 A UI do Kafka fica em <http://localhost:8088>. Ela deve ser usada apenas para inspeção; o broker configurado nos serviços é `localhost:9092`.
 
@@ -903,6 +965,6 @@ dotnet run
 
 ### Limitações e próximos passos
 
-- O modo mock continua disponível para desenvolvimento, mas a presença da seção `Kafka` permite producer real no ambiente local.
+- O modo mock continua disponível para desenvolvimento; quando a seção `Kafka` está configurada, ele usa producer Kafka real e também registra o consumer de `shipping.promise.calculated` com projeção em memória.
 - Em modo com banco configurado, eventos de cotação são gravados no outbox e despachados em background para evitar derrubar indevidamente o request HTTP em falhas temporárias de Kafka.
 - O consumer de `shipping.promise.calculated` registra projeções idempotentes por `eventId` ou por `correlationId` + `checkoutId`.

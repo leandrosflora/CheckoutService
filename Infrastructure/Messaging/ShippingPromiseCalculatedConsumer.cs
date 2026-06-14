@@ -45,6 +45,18 @@ public sealed class ShippingPromiseCalculatedConsumer : BackgroundService
                     continue;
                 }
 
+                if (envelope.Payload.CheckoutId == Guid.Empty)
+                {
+                    _logger.LogError(
+                        "Ignoring shipping.promise.calculated without valid checkoutId topic={Topic} key={MessageKey} eventId={EventId} correlationId={CorrelationId}",
+                        result.Topic,
+                        result.Message.Key,
+                        envelope.EventId,
+                        envelope.CorrelationId);
+                    consumer.Commit(result);
+                    continue;
+                }
+
                 using var scope = _scopeFactory.CreateScope();
                 var repository = scope.ServiceProvider.GetRequiredService<IShippingPromiseProjectionRepository>();
                 if (await repository.HasProcessedAsync(envelope.EventId, envelope.CorrelationId, envelope.Payload.CheckoutId, stoppingToken))
@@ -54,7 +66,16 @@ public sealed class ShippingPromiseCalculatedConsumer : BackgroundService
                     continue;
                 }
 
-                await repository.RecordAsync(envelope.EventId, envelope.CorrelationId, envelope.Payload.CheckoutId, envelope.Payload.PromiseId, envelope.Payload.Mode, envelope.Payload.Carrier, envelope.Payload.EstimatedDeliveryDate, envelope.Payload.Cost, stoppingToken);
+                await repository.RecordAsync(
+                    envelope.EventId,
+                    envelope.CorrelationId,
+                    envelope.Payload.CheckoutId,
+                    envelope.Payload.PromiseId,
+                    envelope.Payload.Mode,
+                    envelope.Payload.Carrier,
+                    envelope.Payload.EstimatedDeliveryDate,
+                    envelope.Payload.Cost,
+                    stoppingToken);
                 _logger.LogInformation("Kafka message consumed topic={Topic} key={MessageKey} eventType={EventType} correlationId={CorrelationId}", result.Topic, result.Message.Key, envelope.EventType, envelope.CorrelationId);
                 consumer.Commit(result);
             }
