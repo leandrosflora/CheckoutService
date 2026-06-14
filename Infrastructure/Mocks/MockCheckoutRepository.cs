@@ -6,8 +6,9 @@ namespace CheckoutService.Infrastructure.Mocks;
 
 public sealed class MockCheckoutRepository : ICheckoutRepository
 {
-    private static readonly Guid CreatedCheckoutId = Guid.Parse("11111111-1111-1111-1111-111111111111");
+    //private static readonly Guid CreatedCheckoutId = Guid.Parse("11111111-1111-1111-1111-111111111111");
     private static readonly Guid ConfirmedCheckoutId = Guid.Parse("22222222-2222-2222-2222-222222222222");
+    private static readonly Guid CreatedCheckoutId = Guid.Parse("00000000-0000-0000-0000-000000000000"); 
 
     private static readonly ConcurrentDictionary<Guid, CheckoutSession> CheckoutsById = new();
     private static readonly ConcurrentDictionary<string, Guid> CheckoutsByIdempotencyKey = new(StringComparer.OrdinalIgnoreCase);
