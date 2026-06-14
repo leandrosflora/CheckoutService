@@ -18,7 +18,6 @@ if (useMockData)
 {
     builder.Services.AddSingleton<ICheckoutRepository, MockCheckoutRepository>();
     builder.Services.AddSingleton<IEventPublisher, MockEventPublisher>();
-    builder.Services.AddSingleton<IShippingPromiseClient, MockShippingPromiseClient>();
 }
 else
 {
@@ -33,17 +32,17 @@ else
     builder.Services.AddScoped<ICheckoutRepository, CheckoutRepository>();
     builder.Services.AddScoped<IEventPublisher, OutboxEventPublisher>();
 
-    builder.Services.AddHttpClient<IShippingPromiseClient, ShippingPromiseClient>(client =>
-    {
-        client.BaseAddress = new Uri(
-            builder.Configuration["Services:ShippingPromise"]
-            ?? throw new InvalidOperationException("ShippingPromise URL not configured"));
-
-        client.Timeout = TimeSpan.FromMilliseconds(800);
-    });
-
     healthChecks.AddDbContextCheck<CheckoutDbContext>();
 }
+
+builder.Services.AddHttpClient<IShippingPromiseClient, ShippingPromiseClient>(client =>
+{
+    client.BaseAddress = new Uri(
+        builder.Configuration["Services:ShippingPromise"]
+        ?? throw new InvalidOperationException("ShippingPromise URL not configured"));
+
+    client.Timeout = TimeSpan.FromMilliseconds(800);
+});
 
 builder.Services.AddProblemDetails();
 builder.Services.AddEndpointsApiExplorer();
