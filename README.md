@@ -666,13 +666,14 @@ Comportamento:
 
 ## Execução com dados mockados
 
-Enquanto o banco de dados e o Shipping Promise Service não estiverem configurados, o projeto pode rodar com mocks ativados. Em `appsettings.Development.json`, `MockData:Enabled` já está como `true`, então o profile de desenvolvimento usa:
+Enquanto o banco de dados não estiver configurado, o projeto pode rodar com persistência mockada. Em `appsettings.Development.json`, `MockData:Enabled` já está como `true`, então o profile de desenvolvimento usa:
 
 - `MockCheckoutRepository`: mantém checkouts criados em memória durante a execução da aplicação.
-- `MockShippingPromiseClient`: gera uma promessa de entrega disponível, com frete grátis para carrinhos a partir de R$ 200,00 e frete padrão de R$ 19,90 para valores menores.
 - `MockEventPublisher`: registra os eventos de outbox no log, sem gravar no banco.
 
-Para voltar a usar PostgreSQL e o serviço real de promessa de entrega, configure `MockData:Enabled` como `false` e mantenha `ConnectionStrings:CheckoutDb` e `Services:ShippingPromise` configurados.
+As chamadas HTTP para serviços externos não são mockadas nesse modo: o `ShippingPromiseClient` real permanece registrado para permitir testes de integração com o Shipping Promise Service. Configure `Services:ShippingPromise` para a URL real do serviço a ser testado.
+
+Para voltar a usar PostgreSQL, configure `MockData:Enabled` como `false` e mantenha `ConnectionStrings:CheckoutDb` e `Services:ShippingPromise` configurados.
 
 ## Configuração
 
@@ -712,7 +713,7 @@ export ASPNETCORE_ENVIRONMENT="Development"
 
 - .NET SDK 8 ou superior.
 - PostgreSQL acessível localmente ou via container.
-- Um serviço compatível com o contrato `POST /shipping-promises`, ou um mock local.
+- Um Shipping Promise Service compatível com o contrato `POST /shipping-promises`.
 
 ### 1. Subir PostgreSQL com Docker
 
