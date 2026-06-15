@@ -1,4 +1,5 @@
 using System.Text.Json;
+using CheckoutService.Contracts;
 using Confluent.Kafka;
 using Microsoft.Extensions.Options;
 
