@@ -34,14 +34,31 @@ public sealed class OutboxKafkaDispatcher : BackgroundService
         using var scope = _scopeFactory.CreateScope();
         var db = scope.ServiceProvider.GetRequiredService<CheckoutDbContext>();
         var producer = scope.ServiceProvider.GetRequiredService<IKafkaProducer>();
-        var messages = await db.OutboxMessages.Where(x => x.ProcessedAt == null && x.EventType == "checkout.shipping.quote.requested").OrderBy(x => x.CreatedAt).Take(20).ToListAsync(cancellationToken);
+
+        var messages = await db.OutboxMessages
+            .Where(x => x.ProcessedAt == null && (x.EventType == "checkout.shipping.quote.requested" || x.EventType == "checkout.confirmed"))
+            .OrderBy(x => x.CreatedAt)
+            .Take(20)
+            .ToListAsync(cancellationToken);
+
         foreach (var message in messages)
         {
-            var envelope = JsonSerializer.Deserialize<KafkaEventEnvelope<ShippingQuoteRequestedPayload>>(message.Payload, JsonOptions);
-            if (envelope is null) continue;
-            await producer.ProduceAsync(_options.Topics.ShippingQuoteRequested, envelope.Payload.CheckoutId.ToString(), envelope, cancellationToken);
+            if (message.EventType == "checkout.shipping.quote.requested")
+            {
+                var envelope = JsonSerializer.Deserialize<KafkaEventEnvelope<ShippingQuoteRequestedPayload>>(message.Payload, JsonOptions);
+                if (envelope is null) continue;
+                await producer.ProduceAsync(_options.Topics.ShippingQuoteRequested, envelope.Payload.CheckoutId.ToString(), envelope, cancellationToken);
+            }
+            else if (message.EventType == "checkout.confirmed")
+            {
+                var envelope = JsonSerializer.Deserialize<KafkaEventEnvelope<CheckoutConfirmedPayload>>(message.Payload, JsonOptions);
+                if (envelope is null) continue;
+                await producer.ProduceAsync(_options.Topics.CheckoutConfirmed, envelope.Payload.CheckoutId.ToString(), envelope, cancellationToken);
+            }
+
             message.MarkAsProcessed();
         }
+
         await db.SaveChangesAsync(cancellationToken);
     }
 }

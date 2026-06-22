@@ -15,4 +15,5 @@ public sealed class KafkaTopicsOptions
 {
     public string ShippingQuoteRequested { get; init; } = "checkout.shipping.quote.requested";
     public string ShippingPromiseCalculated { get; init; } = "shipping.promise.calculated";
+    public string CheckoutConfirmed { get; init; } = "checkout.confirmed";
 }

@@ -35,3 +35,18 @@ public sealed record ShippingPromiseCalculatedPayload(
     [property: JsonPropertyName("cost")] decimal Cost,
     [property: JsonPropertyName("currency")] string Currency,
     [property: JsonPropertyName("source")] string Source);
+
+public sealed record CheckoutConfirmedPayload(
+    [property: JsonPropertyName("checkoutId")] Guid CheckoutId,
+    [property: JsonPropertyName("buyerId")] Guid BuyerId,
+    [property: JsonPropertyName("sellerId")] Guid SellerId,
+    [property: JsonPropertyName("currency")] string Currency,
+    [property: JsonPropertyName("shippingPrice")] decimal ShippingPrice,
+    [property: JsonPropertyName("shippingPromiseId")] string ShippingPromiseId,
+    [property: JsonPropertyName("paymentMethodToken")] string PaymentMethodToken,
+    [property: JsonPropertyName("items")] IReadOnlyList<CheckoutConfirmedItemPayload> Items);
+
+public sealed record CheckoutConfirmedItemPayload(
+    [property: JsonPropertyName("skuId")] Guid SkuId,
+    [property: JsonPropertyName("quantity")] int Quantity,
+    [property: JsonPropertyName("unitPrice")] decimal UnitPrice);

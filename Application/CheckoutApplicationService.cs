@@ -133,24 +133,28 @@ public sealed class CheckoutApplicationService
 
         checkout.Confirm(request.PaymentIntentId, idempotencyKey);
 
-        await _eventPublisher.AddToOutboxAsync(
-            "CheckoutConfirmed",
-            new
-            {
-                EventId = Guid.NewGuid(),
-                EventType = "CheckoutConfirmed",
-                OccurredAt = DateTimeOffset.UtcNow,
-                CheckoutId = checkout.Id,
+        var confirmedEnvelope = new KafkaEventEnvelope<CheckoutConfirmedPayload>(
+            Guid.NewGuid(),
+            "checkout.confirmed",
+            "1.0",
+            DateTimeOffset.UtcNow,
+            idempotencyKey,
+            "checkout-service",
+            new CheckoutConfirmedPayload(
+                checkout.Id,
                 checkout.BuyerId,
                 checkout.SellerId,
-                checkout.TotalAmount,
+                "BRL",
+                checkout.ShippingCost,
                 checkout.ShippingPromiseId,
-                checkout.ShippingMode,
-                checkout.Carrier,
-                checkout.EstimatedDeliveryDate,
                 request.PaymentIntentId,
-                IdempotencyKey = idempotencyKey
-            },
+                checkout.Items
+                    .Select(i => new CheckoutConfirmedItemPayload(i.SkuId, i.Quantity, i.UnitPrice))
+                    .ToList()));
+
+        await _eventPublisher.AddToOutboxAsync(
+            "checkout.confirmed",
+            confirmedEnvelope,
             cancellationToken);
 
         await _repository.SaveChangesAsync(cancellationToken);

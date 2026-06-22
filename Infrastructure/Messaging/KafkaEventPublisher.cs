@@ -19,19 +19,25 @@ public sealed class KafkaEventPublisher : IEventPublisher
 
     public async Task AddToOutboxAsync(string eventType, object payload, CancellationToken cancellationToken)
     {
-        if (payload is not KafkaEventEnvelope<ShippingQuoteRequestedPayload> envelope || eventType != "checkout.shipping.quote.requested")
-        {
-            _logger.LogDebug("Ignoring non-Kafka event type {EventType} in direct Kafka publisher", eventType);
-            return;
-        }
-
         try
         {
-            await _producer.ProduceAsync(_options.Topics.ShippingQuoteRequested, envelope.Payload.CheckoutId.ToString(), envelope, cancellationToken);
+            if (payload is KafkaEventEnvelope<ShippingQuoteRequestedPayload> quoteEnvelope && eventType == "checkout.shipping.quote.requested")
+            {
+                await _producer.ProduceAsync(_options.Topics.ShippingQuoteRequested, quoteEnvelope.Payload.CheckoutId.ToString(), quoteEnvelope, cancellationToken);
+                return;
+            }
+
+            if (payload is KafkaEventEnvelope<CheckoutConfirmedPayload> confirmedEnvelope && eventType == "checkout.confirmed")
+            {
+                await _producer.ProduceAsync(_options.Topics.CheckoutConfirmed, confirmedEnvelope.Payload.CheckoutId.ToString(), confirmedEnvelope, cancellationToken);
+                return;
+            }
+
+            _logger.LogDebug("Ignoring non-Kafka event type {EventType} in direct Kafka publisher", eventType);
         }
         catch (Exception ex)
         {
-            _logger.LogWarning(ex, "Kafka publish failed topic={Topic} key={MessageKey} eventType={EventType} correlationId={CorrelationId}", _options.Topics.ShippingQuoteRequested, envelope.Payload.CheckoutId, envelope.EventType, envelope.CorrelationId);
+            _logger.LogWarning(ex, "Kafka publish failed for eventType={EventType}", eventType);
         }
     }
 }
