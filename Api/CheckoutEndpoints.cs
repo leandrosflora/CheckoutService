@@ -7,7 +7,7 @@ public static class CheckoutEndpoints
 {
     public static IEndpointRouteBuilder MapCheckoutEndpoints(this IEndpointRouteBuilder app)
     {
-        var group = app.MapGroup("/checkouts")
+        var group = app.MapGroup("/v1/checkouts")
             .WithTags("Checkouts");
 
         group.MapPost("/", async Task<IResult> (
