@@ -131,7 +131,7 @@ public sealed class CheckoutApplicationService
             throw new InvalidOperationException("Checkout not found");
         }
 
-        checkout.Confirm(request.PaymentIntentId, idempotencyKey);
+        //checkout.Confirm(request.PaymentIntentId, idempotencyKey);
 
         var confirmedEnvelope = new KafkaEventEnvelope<CheckoutConfirmedPayload>(
             Guid.NewGuid(),

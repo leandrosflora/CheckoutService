@@ -1,7 +1,10 @@
 using CheckoutService.Contracts;
 using System.Text.Json;
-using Microsoft.EntityFrameworkCore;
+using CheckoutService.Application.Ports;
+using Confluent.Kafka;
+using Dapper;
 using Microsoft.Extensions.Options;
+using CheckoutService.Infrastructure.Database;
 
 namespace CheckoutService.Infrastructure.Messaging;
 
@@ -31,34 +34,61 @@ public sealed class OutboxKafkaDispatcher : BackgroundService
 
     private async Task DispatchPendingAsync(CancellationToken cancellationToken)
     {
-        using var scope = _scopeFactory.CreateScope();
-        var db = scope.ServiceProvider.GetRequiredService<CheckoutDbContext>();
+        await using var scope = _scopeFactory.CreateAsyncScope();
+        var db = scope.ServiceProvider.GetRequiredService<IDatabaseContext>();
         var producer = scope.ServiceProvider.GetRequiredService<IKafkaProducer>();
 
-        var messages = await db.OutboxMessages
-            .Where(x => x.ProcessedAt == null && (x.EventType == "checkout.shipping.quote.requested" || x.EventType == "checkout.confirmed"))
-            .OrderBy(x => x.CreatedAt)
-            .Take(20)
-            .ToListAsync(cancellationToken);
+        const string selectSql = @"
+            select
+                message_id as Id,
+                event_type as EventType,
+                payload as Payload
+            from outbox_messages
+            where processed_at is null
+              and (event_type = 'checkout.shipping.quote.requested' or event_type = 'checkout.confirmed')
+            order by created_at
+            limit 20";
+
+        await db.EnsureConnectionOpenAsync(cancellationToken);
+
+        var messages = await db.Connection.QueryAsync<OutboxMessageRow>(selectSql);
 
         foreach (var message in messages)
         {
-            if (message.EventType == "checkout.shipping.quote.requested")
+            try
             {
-                var envelope = JsonSerializer.Deserialize<KafkaEventEnvelope<ShippingQuoteRequestedPayload>>(message.Payload, JsonOptions);
-                if (envelope is null) continue;
-                await producer.ProduceAsync(_options.Topics.ShippingQuoteRequested, envelope.Payload.CheckoutId.ToString(), envelope, cancellationToken);
-            }
-            else if (message.EventType == "checkout.confirmed")
-            {
-                var envelope = JsonSerializer.Deserialize<KafkaEventEnvelope<CheckoutConfirmedPayload>>(message.Payload, JsonOptions);
-                if (envelope is null) continue;
-                await producer.ProduceAsync(_options.Topics.CheckoutConfirmed, envelope.Payload.CheckoutId.ToString(), envelope, cancellationToken);
-            }
+                if (message.EventType == "checkout.shipping.quote.requested")
+                {
+                    var envelope = JsonSerializer.Deserialize<KafkaEventEnvelope<ShippingQuoteRequestedPayload>>(message.Payload, JsonOptions);
+                    if (envelope is null) continue;
+                    await producer.ProduceAsync(_options.Topics.ShippingQuoteRequested, envelope.Payload.CheckoutId.ToString(), envelope, cancellationToken);
+                }
+                else if (message.EventType == "checkout.confirmed")
+                {
+                    var envelope = JsonSerializer.Deserialize<KafkaEventEnvelope<CheckoutConfirmedPayload>>(message.Payload, JsonOptions);
+                    if (envelope is null) continue;
+                    await producer.ProduceAsync(_options.Topics.CheckoutConfirmed, envelope.Payload.CheckoutId.ToString(), envelope, cancellationToken);
+                }
 
-            message.MarkAsProcessed();
+                await db.EnsureTransactionAsync(cancellationToken);
+                await db.Connection.ExecuteAsync(
+                    "update outbox_messages set processed_at = @ProcessedAt where message_id = @Id",
+                    new { ProcessedAt = DateTimeOffset.UtcNow, message.Id },
+                    db.Transaction);
+                await db.CommitAsync(cancellationToken);
+            }
+            catch (Exception ex)
+            {
+                _logger.LogWarning(ex, "Failed to dispatch outbox message id={MessageId}", message.Id);
+                await db.RollbackAsync();
+            }
         }
+    }
 
-        await db.SaveChangesAsync(cancellationToken);
+    private sealed class OutboxMessageRow
+    {
+        public Guid Id { get; set; }
+        public string EventType { get; set; } = string.Empty;
+        public string Payload { get; set; } = string.Empty;
     }
 }

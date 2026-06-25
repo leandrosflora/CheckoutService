@@ -1,11 +1,11 @@
 using CheckoutService.Api;
 using CheckoutService.Application;
-using CheckoutService.Infrastructure;
-using CheckoutService.Infrastructure.Repositories;
-using CheckoutService.Infrastructure.Mocks;
-using CheckoutService.Infrastructure.Messaging;
-using Microsoft.EntityFrameworkCore;
 using CheckoutService.Application.Ports;
+using CheckoutService.Infrastructure;
+using CheckoutService.Infrastructure.Database;
+using CheckoutService.Infrastructure.Messaging;
+using CheckoutService.Infrastructure.Mocks;
+using CheckoutService.Infrastructure.Repositories;
 using OpenTelemetry.Metrics;
 using OpenTelemetry.Resources;
 using OpenTelemetry.Trace;
@@ -55,14 +55,7 @@ if (useMockData)
 }
 else
 {
-    builder.Services.AddDbContext<CheckoutDbContext>(options =>
-    {
-        var connectionString = builder.Configuration.GetConnectionString("CheckoutDb")
-            ?? throw new InvalidOperationException("CheckoutDb connection string not configured");
-
-        options.UseNpgsql(connectionString);
-    });
-
+    builder.Services.AddScoped<IDatabaseContext, DatabaseContext>();
     builder.Services.AddScoped<ICheckoutRepository, CheckoutRepository>();
     builder.Services.AddScoped<IEventPublisher, OutboxEventPublisher>();
     builder.Services.AddScoped<IShippingPromiseProjectionRepository, ShippingPromiseProjectionRepository>();
@@ -73,7 +66,7 @@ else
         builder.Services.AddHostedService<ShippingPromiseCalculatedConsumer>();
     }
 
-    healthChecks.AddDbContextCheck<CheckoutDbContext>();
+    healthChecks.AddCheck<DatabaseHealthCheck>("checkout_db");
 }
 
 builder.Services.AddHttpClient<IShippingPromiseClient, ShippingPromiseClient>(client =>

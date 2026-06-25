@@ -57,7 +57,7 @@ public sealed class ShippingPromiseCalculatedConsumer : BackgroundService
                     continue;
                 }
 
-                using var scope = _scopeFactory.CreateScope();
+                await using var scope = _scopeFactory.CreateAsyncScope();
                 var repository = scope.ServiceProvider.GetRequiredService<IShippingPromiseProjectionRepository>();
                 if (await repository.HasProcessedAsync(envelope.EventId, envelope.CorrelationId, envelope.Payload.CheckoutId, stoppingToken))
                 {

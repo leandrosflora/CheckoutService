@@ -6,6 +6,7 @@ CREATE TABLE checkouts (
     shipping_promise_id VARCHAR(200) NOT NULL,
     shipping_mode VARCHAR(100) NOT NULL,
     carrier VARCHAR(100) NOT NULL,
+    estimated_delivery_date DATE NOT NULL,
     items_total NUMERIC(18,2) NOT NULL,
     shipping_cost NUMERIC(18,2) NOT NULL,
     total_amount NUMERIC(18,2) NOT NULL,
@@ -14,6 +15,7 @@ CREATE TABLE checkouts (
     payment_intent_id VARCHAR(200) NULL,
     created_at TIMESTAMPTZ NOT NULL,
     updated_at TIMESTAMPTZ NOT NULL,
+    confirmed_at TIMESTAMPTZ NULL,
     CONSTRAINT uq_checkouts_idempotency UNIQUE (idempotency_key),
     CONSTRAINT uq_checkouts_confirmation_idempotency UNIQUE (confirmation_idempotency_key)
 );
