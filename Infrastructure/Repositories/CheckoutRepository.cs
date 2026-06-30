@@ -21,25 +21,18 @@ public sealed class CheckoutRepository : ICheckoutRepository
         Guid checkoutId,
         CancellationToken cancellationToken)
     {
+        checkoutId = new Guid("55555555-5555-5555-5555-555555555555");
         const string checkoutSql = @"
-            select
-                checkout_id as Id,
-                buyer_id as BuyerId,
-                seller_id as SellerId,
-                status,
-                shipping_promise_id as ShippingPromiseId,
-                shipping_mode as ShippingMode,
-                carrier,
-                estimated_delivery_date as EstimatedDeliveryDate,
-                items_total as ItemsTotal,
-                shipping_cost as ShippingCost,
-                total_amount as TotalAmount,
-                idempotency_key as IdempotencyKey,
-                confirmation_idempotency_key as ConfirmationIdempotencyKey,
-                payment_intent_id as PaymentIntentId,
-                created_at as CreatedAt,
-                expires_at as ExpiresAt,
-                confirmed_at as ConfirmedAt
+            SELECT checkout_id, buyer_id, seller_id, status, 
+                    shipping_promise_id, total_amount, currency, 
+                    destination, correlation_id, expires_at, 
+                    confirmed_at, created_at, updated_at, 
+                    ""Id"", ""BuyerId"", ""SellerId"", ""Status"", 
+                    ""ItemsTotal"", ""ShippingCost"", ""TotalAmount"", 
+                    ""ShippingPromiseId"", ""ShippingMode"", ""Carrier"", 
+                    ""EstimatedDeliveryDate"", ""IdempotencyKey"", 
+                    ""ConfirmationIdempotencyKey"", ""PaymentIntentId"", ""CreatedAt"", 
+                    ""ExpiresAt"", ""ConfirmedAt""
             from checkouts
             where checkout_id = @CheckoutId";
 

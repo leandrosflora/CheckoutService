@@ -44,8 +44,7 @@ public sealed class OutboxKafkaDispatcher : BackgroundService
                 event_type as EventType,
                 payload as Payload
             from outbox_messages
-            where processed_at is null
-              and (event_type = 'checkout.shipping.quote.requested' or event_type = 'checkout.confirmed')
+            where (event_type = 'checkout.shipping.quote.requested' or event_type = 'checkout.confirmed')
             order by created_at
             limit 20";
 
