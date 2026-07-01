@@ -14,6 +14,32 @@ public sealed class ShippingPromiseProjectionRepository : IShippingPromiseProjec
         _databaseContext = databaseContext;
     }
 
+    public async Task<ShippingPromiseProjection?> GetByCheckoutIdAsync(Guid checkoutId, CancellationToken cancellationToken)
+    {
+        const string sql = @"
+            select
+                id as Id,
+                event_id as EventId,
+                correlation_id as CorrelationId,
+                checkout_id as CheckoutId,
+                promise_id as PromiseId,
+                mode as Mode,
+                carrier as Carrier,
+                estimated_delivery_date as EstimatedDeliveryDate,
+                cost as Cost,
+                created_at as ProcessedAt
+            from shipping_promise_projections
+            where checkout_id = @CheckoutId
+            order by created_at desc
+            limit 1";
+
+        await _databaseContext.EnsureConnectionOpenAsync(cancellationToken);
+
+        return await _databaseContext.Connection.QueryFirstOrDefaultAsync<ShippingPromiseProjection>(
+            sql,
+            new { CheckoutId = checkoutId });
+    }
+
     public async Task<bool> HasProcessedAsync(Guid eventId, string correlationId, Guid checkoutId, CancellationToken cancellationToken)
     {
         const string sql = @"

@@ -62,6 +62,20 @@ public sealed class MockCheckoutRepository : ICheckoutRepository
         return Task.CompletedTask;
     }
 
+    public Task UpdateAsync(
+        CheckoutSession checkout,
+        CancellationToken cancellationToken)
+    {
+        CheckoutsById[checkout.Id] = checkout;
+
+        if (checkout.ConfirmationIdempotencyKey is not null)
+        {
+            ConfirmedCheckoutsByIdempotencyKey[checkout.ConfirmationIdempotencyKey] = checkout.Id;
+        }
+
+        return Task.CompletedTask;
+    }
+
     public Task SaveChangesAsync(CancellationToken cancellationToken)
     {
         foreach (var checkout in CheckoutsById.Values.Where(x => x.ConfirmationIdempotencyKey is not null))

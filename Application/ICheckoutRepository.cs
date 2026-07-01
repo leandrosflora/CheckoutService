@@ -20,5 +20,9 @@ public interface ICheckoutRepository
         CheckoutSession checkout,
         CancellationToken cancellationToken);
 
+    Task UpdateAsync(
+        CheckoutSession checkout,
+        CancellationToken cancellationToken);
+
     Task SaveChangesAsync(CancellationToken cancellationToken);
 }

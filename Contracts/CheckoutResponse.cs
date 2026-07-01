@@ -15,3 +15,8 @@ public sealed record ShippingOptionDto(
     string Carrier,
     DateOnly EstimatedDeliveryDate,
     decimal Cost);
+
+
+public sealed record ShippingOptionsResponse(
+    string QuoteStatus,
+    IReadOnlyList<ShippingOptionDto> Options);
