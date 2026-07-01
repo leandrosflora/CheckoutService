@@ -33,6 +33,7 @@ public sealed class KafkaProducer : IKafkaProducer, IDisposable
         var value = JsonSerializer.Serialize(envelope, JsonOptions);
         var result = await _producer.ProduceAsync(topic, new Message<string, string> { Key = key, Value = value }, cancellationToken);
         _logger.LogInformation("Kafka message produced topic={Topic} key={MessageKey} eventType={EventType} correlationId={CorrelationId} partition={Partition} offset={Offset}", topic, key, envelope.EventType, envelope.CorrelationId, result.Partition.Value, result.Offset.Value);
+        _logger.LogDebug("Kafka message payload topic={Topic} key={MessageKey} payload={Payload}", topic, key, value);
     }
 
     public void Dispose() => _producer.Dispose();

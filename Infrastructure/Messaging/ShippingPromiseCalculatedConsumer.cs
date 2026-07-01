@@ -37,6 +37,7 @@ public sealed class ShippingPromiseCalculatedConsumer : BackgroundService
             try
             {
                 var result = consumer.Consume(stoppingToken);
+                _logger.LogDebug("Kafka message payload topic={Topic} key={MessageKey} payload={Payload}", result.Topic, result.Message.Key, result.Message.Value);
                 var envelope = JsonSerializer.Deserialize<KafkaEventEnvelope<ShippingPromiseCalculatedPayload>>(result.Message.Value, JsonOptions);
                 if (envelope is null || envelope.EventType != "shipping.promise.calculated")
                 {
