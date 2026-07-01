@@ -146,6 +146,52 @@ public sealed class CheckoutRepository : ICheckoutRepository
         return Task.CompletedTask;
     }
 
+    public async Task UpdateAsync(
+        CheckoutSession checkout,
+        CancellationToken cancellationToken)
+    {
+        await _databaseContext.EnsureTransactionAsync(cancellationToken);
+
+        const string updateCheckoutSql = @"
+            update checkouts
+            set
+                status = @Status,
+                shipping_promise_id = @ShippingPromiseId,
+                shipping_mode = @ShippingMode,
+                carrier = @Carrier,
+                estimated_delivery_date = @EstimatedDeliveryDate,
+                items_total = @ItemsTotal,
+                shipping_cost = @ShippingCost,
+                total_amount = @TotalAmount,
+                confirmation_idempotency_key = @ConfirmationIdempotencyKey,
+                payment_intent_id = @PaymentIntentId,
+                updated_at = @UpdatedAt,
+                expires_at = @ExpiresAt,
+                confirmed_at = @ConfirmedAt
+            where id = @Id";
+
+        await _databaseContext.Connection.ExecuteAsync(
+            updateCheckoutSql,
+            new
+            {
+                checkout.Id,
+                Status = checkout.Status.ToString(),
+                checkout.ShippingPromiseId,
+                checkout.ShippingMode,
+                checkout.Carrier,
+                checkout.EstimatedDeliveryDate,
+                checkout.ItemsTotal,
+                checkout.ShippingCost,
+                checkout.TotalAmount,
+                checkout.ConfirmationIdempotencyKey,
+                checkout.PaymentIntentId,
+                UpdatedAt = DateTimeOffset.UtcNow,
+                checkout.ExpiresAt,
+                checkout.ConfirmedAt
+            },
+            _databaseContext.Transaction);
+    }
+
     public async Task SaveChangesAsync(CancellationToken cancellationToken)
     {
         if (_pendingCheckouts.Count == 0)
@@ -198,7 +244,7 @@ public sealed class CheckoutRepository : ICheckoutRepository
         const string insertItemSql = @"
             insert into checkout_items (
                 id,
-                ""CheckoutId"",
+                checkout_id,
                 sku_id,
                 quantity,
                 unit_price
@@ -261,7 +307,7 @@ public sealed class CheckoutRepository : ICheckoutRepository
                 quantity as Quantity,
                 unit_price as UnitPrice
             from checkout_items
-            where ""CheckoutId"" = @CheckoutId";
+            where checkout_id = @CheckoutId";
 
         await _databaseContext.EnsureConnectionOpenAsync(cancellationToken);
         return await _databaseContext.Connection.QueryAsync<CheckoutItemRow>(sql, new { CheckoutId = checkoutId });

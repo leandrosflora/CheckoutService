@@ -4,6 +4,8 @@ namespace CheckoutService.Application.Ports;
 
 public interface IShippingPromiseProjectionRepository
 {
+    Task<ShippingPromiseProjection?> GetByCheckoutIdAsync(Guid checkoutId, CancellationToken cancellationToken);
+
     Task<bool> HasProcessedAsync(Guid eventId, string correlationId, Guid checkoutId, CancellationToken cancellationToken);
 
     Task RecordAsync(

@@ -15,6 +15,7 @@ CREATE TABLE checkouts (
     payment_intent_id VARCHAR(200) NULL,
     created_at TIMESTAMPTZ NOT NULL,
     updated_at TIMESTAMPTZ NOT NULL,
+    expires_at TIMESTAMPTZ NOT NULL,
     confirmed_at TIMESTAMPTZ NULL,
     CONSTRAINT uq_checkouts_idempotency UNIQUE (idempotency_key),
     CONSTRAINT uq_checkouts_confirmation_idempotency UNIQUE (confirmation_idempotency_key)
@@ -22,13 +23,13 @@ CREATE TABLE checkouts (
 
 CREATE TABLE checkout_items (
     id UUID PRIMARY KEY,
-    "CheckoutId" UUID NOT NULL REFERENCES checkouts(id),
+    checkout_id UUID NOT NULL REFERENCES checkouts(id),
     sku_id UUID NOT NULL,
     quantity INTEGER NOT NULL,
     unit_price NUMERIC(18,2) NOT NULL
 );
 
-CREATE INDEX idx_checkout_items_checkout ON checkout_items ("CheckoutId");
+CREATE INDEX idx_checkout_items_checkout ON checkout_items (checkout_id);
 
 CREATE TABLE outbox_messages (
     id UUID PRIMARY KEY,

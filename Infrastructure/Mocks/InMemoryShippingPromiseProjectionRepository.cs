@@ -7,7 +7,17 @@ namespace CheckoutService.Infrastructure.Mocks;
 public sealed class InMemoryShippingPromiseProjectionRepository : IShippingPromiseProjectionRepository
 {
     private readonly ConcurrentDictionary<Guid, ShippingPromiseProjection> _projectionsByEventId = new();
+    private readonly ConcurrentDictionary<Guid, ShippingPromiseProjection> _projectionsByCheckoutId = new();
     private readonly ConcurrentDictionary<string, Guid> _eventIdsByCorrelationAndCheckout = new(StringComparer.OrdinalIgnoreCase);
+
+    public Task<ShippingPromiseProjection?> GetByCheckoutIdAsync(Guid checkoutId, CancellationToken cancellationToken)
+    {
+        var projection = _projectionsByCheckoutId.TryGetValue(checkoutId, out var existing)
+            ? existing
+            : null;
+
+        return Task.FromResult(projection);
+    }
 
     public Task<bool> HasProcessedAsync(Guid eventId, string correlationId, Guid checkoutId, CancellationToken cancellationToken)
     {
@@ -52,6 +62,7 @@ public sealed class InMemoryShippingPromiseProjectionRepository : IShippingPromi
         if (_projectionsByEventId.TryAdd(eventId, projection))
         {
             _eventIdsByCorrelationAndCheckout.TryAdd(key, eventId);
+            _projectionsByCheckoutId.TryAdd(checkoutId, projection);
         }
 
         return Task.CompletedTask;

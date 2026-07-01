@@ -38,7 +38,7 @@ public static class CheckoutEndpoints
                 correlationId,
                 cancellationToken);
 
-            return Results.Created($"/checkouts/{response.CheckoutId}", response);
+            return Results.Created($"/v1/checkouts/{response.CheckoutId}", response);
         });
 
         group.MapGet("/{checkoutId:guid}", async Task<IResult> (
@@ -47,6 +47,18 @@ public static class CheckoutEndpoints
             CancellationToken cancellationToken) =>
         {
             var response = await service.GetCheckoutAsync(checkoutId, cancellationToken);
+
+            return response is null
+                ? Results.NotFound()
+                : Results.Ok(response);
+        });
+
+        group.MapGet("/{checkoutId:guid}/shipping-options", async Task<IResult> (
+            Guid checkoutId,
+            CheckoutApplicationService service,
+            CancellationToken cancellationToken) =>
+        {
+            var response = await service.GetShippingOptionsAsync(checkoutId, cancellationToken);
 
             return response is null
                 ? Results.NotFound()
@@ -70,10 +82,17 @@ public static class CheckoutEndpoints
                 });
             }
 
+            var correlationId = httpContext.Request.Headers["X-Correlation-Id"].ToString();
+            if (string.IsNullOrWhiteSpace(correlationId))
+            {
+                correlationId = httpContext.TraceIdentifier;
+            }
+
             var response = await service.ConfirmCheckoutAsync(
                 checkoutId,
                 request,
                 idempotencyKey,
+                correlationId,
                 cancellationToken);
 
             return Results.Ok(response);

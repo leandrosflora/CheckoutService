@@ -1,3 +1,4 @@
+using CheckoutService.Application.Ports;
 using CheckoutService.Contracts;
 using CheckoutService.Domain;
 
@@ -8,15 +9,18 @@ public sealed class CheckoutApplicationService
     private readonly ICheckoutRepository _repository;
     private readonly IShippingPromiseClient _shippingPromiseClient;
     private readonly IEventPublisher _eventPublisher;
+    private readonly IShippingPromiseProjectionRepository _shippingPromiseProjectionRepository;
 
     public CheckoutApplicationService(
         ICheckoutRepository repository,
         IShippingPromiseClient shippingPromiseClient,
-        IEventPublisher eventPublisher)
+        IEventPublisher eventPublisher,
+        IShippingPromiseProjectionRepository shippingPromiseProjectionRepository)
     {
         _repository = repository;
         _shippingPromiseClient = shippingPromiseClient;
         _eventPublisher = eventPublisher;
+        _shippingPromiseProjectionRepository = shippingPromiseProjectionRepository;
     }
 
     public async Task<CheckoutResponse> CreateCheckoutAsync(
@@ -109,10 +113,42 @@ public sealed class CheckoutApplicationService
             : MapToResponse(checkout);
     }
 
+
+    public async Task<ShippingOptionsResponse?> GetShippingOptionsAsync(
+        Guid checkoutId,
+        CancellationToken cancellationToken)
+    {
+        var checkout = await _repository.GetByIdAsync(checkoutId, cancellationToken);
+
+        if (checkout is null)
+        {
+            return null;
+        }
+
+        var projection = await _shippingPromiseProjectionRepository.GetByCheckoutIdAsync(
+            checkoutId,
+            cancellationToken);
+
+        if (projection is null)
+        {
+            return new ShippingOptionsResponse("Pending", []);
+        }
+
+        return new ShippingOptionsResponse(
+            "Calculated",
+            [new ShippingOptionDto(
+                projection.PromiseId,
+                projection.Mode,
+                projection.Carrier,
+                projection.EstimatedDeliveryDate,
+                projection.Cost)]);
+    }
+
     public async Task<CheckoutResponse> ConfirmCheckoutAsync(
         Guid checkoutId,
         ConfirmCheckoutRequest request,
         string idempotencyKey,
+        string correlationId,
         CancellationToken cancellationToken)
     {
         var existing = await _repository.FindConfirmedByIdempotencyKeyAsync(
@@ -131,14 +167,16 @@ public sealed class CheckoutApplicationService
             throw new InvalidOperationException("Checkout not found");
         }
 
-        //checkout.Confirm(request.PaymentIntentId, idempotencyKey);
+        checkout.Confirm(request.PaymentIntentId, idempotencyKey);
+
+        await _repository.UpdateAsync(checkout, cancellationToken);
 
         var confirmedEnvelope = new KafkaEventEnvelope<CheckoutConfirmedPayload>(
             Guid.NewGuid(),
             "checkout.confirmed",
             "1.0",
             DateTimeOffset.UtcNow,
-            idempotencyKey,
+            correlationId,
             "checkout-service",
             new CheckoutConfirmedPayload(
                 checkout.Id,
