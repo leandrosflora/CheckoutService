@@ -22,7 +22,7 @@ public sealed class ShippingPromiseClient : IShippingPromiseClient
         CancellationToken cancellationToken)
     {
         using var response = await _httpClient.PostAsJsonAsync(
-            "/shipping-promises",
+            "/v1/shipping-promises",
             request,
             cancellationToken);
 

@@ -6,9 +6,12 @@ using CheckoutService.Infrastructure.Database;
 using CheckoutService.Infrastructure.Messaging;
 using CheckoutService.Infrastructure.Mocks;
 using CheckoutService.Infrastructure.Repositories;
+using Dapper;
 using OpenTelemetry.Metrics;
 using OpenTelemetry.Resources;
 using OpenTelemetry.Trace;
+
+SqlMapper.AddTypeHandler(new DateOnlyTypeHandler());
 
 var builder = WebApplication.CreateBuilder(args);
 
