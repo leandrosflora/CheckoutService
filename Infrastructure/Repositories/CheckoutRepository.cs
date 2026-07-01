@@ -21,20 +21,27 @@ public sealed class CheckoutRepository : ICheckoutRepository
         Guid checkoutId,
         CancellationToken cancellationToken)
     {
-        checkoutId = new Guid("55555555-5555-5555-5555-555555555555");
         const string checkoutSql = @"
-            SELECT checkout_id, buyer_id, seller_id, status, 
-                    shipping_promise_id, total_amount, currency, 
-                    destination, correlation_id, expires_at, 
-                    confirmed_at, created_at, updated_at, 
-                    ""Id"", ""BuyerId"", ""SellerId"", ""Status"", 
-                    ""ItemsTotal"", ""ShippingCost"", ""TotalAmount"", 
-                    ""ShippingPromiseId"", ""ShippingMode"", ""Carrier"", 
-                    ""EstimatedDeliveryDate"", ""IdempotencyKey"", 
-                    ""ConfirmationIdempotencyKey"", ""PaymentIntentId"", ""CreatedAt"", 
-                    ""ExpiresAt"", ""ConfirmedAt""
+            select
+                id as Id,
+                buyer_id as BuyerId,
+                seller_id as SellerId,
+                status as Status,
+                shipping_promise_id as ShippingPromiseId,
+                shipping_mode as ShippingMode,
+                carrier as Carrier,
+                estimated_delivery_date as EstimatedDeliveryDate,
+                items_total as ItemsTotal,
+                shipping_cost as ShippingCost,
+                total_amount as TotalAmount,
+                idempotency_key as IdempotencyKey,
+                confirmation_idempotency_key as ConfirmationIdempotencyKey,
+                payment_intent_id as PaymentIntentId,
+                created_at as CreatedAt,
+                expires_at as ExpiresAt,
+                confirmed_at as ConfirmedAt
             from checkouts
-            where checkout_id = @CheckoutId";
+            where id = @CheckoutId";
 
         await _databaseContext.EnsureConnectionOpenAsync(cancellationToken);
 
@@ -56,10 +63,10 @@ public sealed class CheckoutRepository : ICheckoutRepository
     {
         const string checkoutSql = @"
             select
-                checkout_id as Id,
+                id as Id,
                 buyer_id as BuyerId,
                 seller_id as SellerId,
-                status,
+                status as Status,
                 shipping_promise_id as ShippingPromiseId,
                 shipping_mode as ShippingMode,
                 carrier as Carrier,
@@ -96,10 +103,10 @@ public sealed class CheckoutRepository : ICheckoutRepository
     {
         const string checkoutSql = @"
             select
-                checkout_id as Id,
+                id as Id,
                 buyer_id as BuyerId,
                 seller_id as SellerId,
-                status,
+                status as Status,
                 shipping_promise_id as ShippingPromiseId,
                 shipping_mode as ShippingMode,
                 carrier as Carrier,
@@ -151,7 +158,7 @@ public sealed class CheckoutRepository : ICheckoutRepository
 
         const string insertCheckoutSql = @"
             insert into checkouts (
-                checkout_id,
+                id,
                 buyer_id,
                 seller_id,
                 status,
@@ -190,8 +197,8 @@ public sealed class CheckoutRepository : ICheckoutRepository
                 @ConfirmedAt)";
         const string insertItemSql = @"
             insert into checkout_items (
-                checkout_item_id,
-                checkout_id,
+                id,
+                ""CheckoutId"",
                 sku_id,
                 quantity,
                 unit_price
@@ -249,12 +256,12 @@ public sealed class CheckoutRepository : ICheckoutRepository
     {
         const string sql = @"
             select
-                checkout_item_id as Id,
+                id as Id,
                 sku_id as SkuId,
                 quantity as Quantity,
                 unit_price as UnitPrice
             from checkout_items
-            where checkout_id = @CheckoutId";
+            where ""CheckoutId"" = @CheckoutId";
 
         await _databaseContext.EnsureConnectionOpenAsync(cancellationToken);
         return await _databaseContext.Connection.QueryAsync<CheckoutItemRow>(sql, new { CheckoutId = checkoutId });
