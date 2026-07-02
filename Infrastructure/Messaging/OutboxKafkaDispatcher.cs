@@ -44,7 +44,8 @@ public sealed class OutboxKafkaDispatcher : BackgroundService
                 event_type as EventType,
                 payload as Payload
             from outbox_messages
-            where (event_type = 'checkout.shipping.quote.requested' or event_type = 'checkout.confirmed')
+            where published_at is null
+              and (event_type = 'checkout.shipping.quote.requested' or event_type = 'checkout.confirmed')
             order by created_at
             limit 20";
 
@@ -71,8 +72,8 @@ public sealed class OutboxKafkaDispatcher : BackgroundService
 
                 await db.EnsureTransactionAsync(cancellationToken);
                 await db.Connection.ExecuteAsync(
-                    "update outbox_messages set processed_at = @ProcessedAt where message_id = @Id",
-                    new { ProcessedAt = DateTimeOffset.UtcNow, message.Id },
+                    "update outbox_messages set published_at = @PublishedAt where message_id = @Id",
+                    new { PublishedAt = DateTimeOffset.UtcNow, message.Id },
                     db.Transaction);
                 await db.CommitAsync(cancellationToken);
             }
